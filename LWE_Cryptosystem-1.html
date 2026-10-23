@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post-Quantum LWE Cryptosystem</title>
+    <style>
+        :root {
+            --bg-color: #0b0221;
+            --card-bg: rgba(30, 20, 60, 0.55);
+            --accent-cyan: #38f2ff;
+            --accent-purple: #c084fc;
+            --accent-pink: #ff5dd2;
+            --accent-orange: #ffb454;
+            --accent-green: #4ade80;
+            --accent-red: #ff5d7a;
+            --text-main: #f8fafc;
+            --text-muted: #b6b0d6;
+            --border-color: rgba(255, 255, 255, 0.14);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #0b0221;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(56, 242, 255, 0.25) 0px, transparent 55%),
+                radial-gradient(at 100% 0%, rgba(255, 93, 210, 0.22) 0px, transparent 55%),
+                radial-gradient(at 100% 100%, rgba(192, 132, 252, 0.25) 0px, transparent 55%),
+                radial-gradient(at 0% 100%, rgba(255, 180, 84, 0.18) 0px, transparent 55%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem 1rem 5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Floating animated blobs for ambience */
+        .blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(70px);
+            opacity: 0.35;
+            z-index: 0;
+            pointer-events: none;
+            animation: float 14s ease-in-out infinite;
+        }
+        .blob1 { width: 380px; height: 380px; background: var(--accent-cyan); top: -100px; left: -120px; animation-delay: 0s; }
+        .blob2 { width: 420px; height: 420px; background: var(--accent-pink); bottom: -150px; right: -140px; animation-delay: 3s; }
+        .blob3 { width: 300px; height: 300px; background: var(--accent-purple); top: 40%; left: 60%; animation-delay: 6s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -40px) scale(1.08); }
+            66% { transform: translate(-25px, 30px) scale(0.95); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            z-index: 1;
+        }
+
+        header h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-pink), var(--accent-orange), var(--accent-purple), var(--accent-cyan));
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            animation: shimmer 6s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% center; }
+            100% { background-position: 300% center; }
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1150px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.7rem;
+            z-index: 1;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 1.6rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.35s ease, box-shadow 0.35s ease;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            padding: 1px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-pink), var(--accent-purple));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 40px 0 rgba(0, 0, 0, 0.55), 0 0 30px rgba(192, 132, 252, 0.25);
+        }
+
+        .card:nth-child(1) h2 { color: var(--accent-cyan); }
+        .card:nth-child(2) h2 { color: var(--accent-pink); }
+        .card:nth-child(3) h2 { color: var(--accent-orange); }
+
+        .card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .grid-inputs {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .matrix-input-4x4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.4rem;
+        }
+
+        .vector-input-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.4rem;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            background: rgba(10, 6, 30, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.55rem;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        input[type="number"]:hover {
+            border-color: var(--accent-purple);
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(56, 242, 255, 0.45);
+            transform: scale(1.04);
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            margin-top: 1.3rem;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink));
+            background-size: 200% auto;
+            color: #0b0221;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: background-position 0.5s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            background-position: right center;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(192, 132, 252, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0px) scale(0.97);
+        }
+
+        /* Ripple effect */
+        .btn .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0);
+            animation: ripple-anim 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-anim {
+            to { transform: scale(3); opacity: 0; }
+        }
+
+        .output-box {
+            background: rgba(10, 6, 30, 0.75);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 1.05rem;
+            white-space: pre;
+            border-left: 3px solid var(--accent-purple);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 140px;
+            transition: all 0.3s ease;
+        }
+
+        .error-box {
+            border-left: 3px solid var(--accent-red) !important;
+            color: var(--accent-red) !important;
+            white-space: pre-wrap !important;
+            text-align: center;
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+        }
+
+        .success-box {
+            border-left: 3px solid var(--accent-green) !important;
+            color: var(--accent-green) !important;
+            animation: pop 0.4s ease;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.9); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .matrix-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .matrix-label {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .bracket-matrix {
+            display: inline-grid;
+            grid-template-rows: repeat(4, auto);
+            gap: 0.3rem;
+            padding: 0.2rem 0.6rem;
+            border-left: 2px solid var(--text-main);
+            border-right: 2px solid var(--text-main);
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        /* Footer credit */
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            z-index: 1;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+        }
+
+        footer .credit-names {
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-pink), var(--accent-orange));
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            animation: shimmer 5s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="blob blob1"></div>
+    <div class="blob blob2"></div>
+    <div class="blob blob3"></div>
+
+    <header>
+        <h1>Lattice Cryptosystem (LWE)</h1>
+        <p>Post-Quantum Encryption Demonstration</p>
+    </header>
+
+    <div class="container">
+
+        <!-- STEP 1: RECEIVER SETUP -->
+        <div class="card">
+            <h2>🔑 1. Receiver Key Setup</h2>
+            <div class="grid-inputs">
+                <div>
+                    <label>General Matrix A (4x4)</label>
+                    <div class="matrix-input-4x4" id="matrixA">
+                        <input type="number" value="2"><input type="number" value="10"><input type="number" value="6"><input type="number" value="8">
+                        <input type="number" value="15"><input type="number" value="13"><input type="number" value="7"><input type="number" value="5">
+                        <input type="number" value="9"><input type="number" value="4"><input type="number" value="3"><input type="number" value="11">
+                        <input type="number" value="17"><input type="number" value="25"><input type="number" value="21"><input type="number" value="19">
+                    </div>
+                </div>
+
+                <div>
+                    <label>Secret Key S (Vector 4x1)</label>
+                    <div class="vector-input-4" id="vectorS">
+                        <input type="number" value="3">
+                        <input type="number" value="2">
+                        <input type="number" value="0">
+                        <input type="number" value="3">
+                    </div>
+                </div>
+
+                <div>
+                    <label>Receiver Noise e (Vector 4x1)</label>
+                    <div class="vector-input-4" id="vectore">
+                        <input type="number" value="1">
+                        <input type="number" value="-1">
+                        <input type="number" value="0">
+                        <input type="number" value="1">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="generatePublicKey(event)">Generate Public Key (B)</button>
+            <div class="output-box" id="outPublicKey"></div>
+        </div>
+
+        <!-- STEP 2: SENDER ENCRYPTION -->
+        <div class="card">
+            <h2>✉️ 2. Sender Encryption</h2>
+            <div class="grid-inputs">
+                <div>
+                    <label>Original Pixels P (Vector 4x1)</label>
+                    <div class="vector-input-4" id="vectorP">
+                        <input type="number" value="150">
+                        <input type="number" value="200">
+                        <input type="number" value="225">
+                        <input type="number" value="100">
+                    </div>
+                </div>
+
+                <div>
+                    <label>Sender Noise E (Vector 4x1)</label>
+                    <div class="vector-input-4" id="vectorE">
+                        <input type="number" value="-1">
+                        <input type="number" value="0">
+                        <input type="number" value="0">
+                        <input type="number" value="1">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="encryptMessage(event)">Encrypt Matrix (V)</button>
+            <div class="output-box" id="outEncrypted"></div>
+        </div>
+
+        <!-- STEP 3: DECRYPTION & RECOVERY -->
+        <div class="card">
+            <h2>🔓 3. Receiver Decryption</h2>
+            <div class="grid-inputs">
+                <div>
+                    <label>Enter Secret Key for Decryption (Vector 4x1)</label>
+                    <div class="vector-input-4" id="vectorAuthS">
+                        <input type="number" placeholder="S1">
+                        <input type="number" placeholder="S2">
+                        <input type="number" placeholder="S3">
+                        <input type="number" placeholder="S4">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="decryptMessage(event)">Decrypt Matrix</button>
+            <div class="output-box" id="outDecrypted"></div>
+        </div>
+
+    </div>
+
+    <footer>
+        Made By: <span class="credit-names">M. Sohaib Rawish</span> &amp; <span class="credit-names">Priyanka Ojha</span>
+    </footer>
+
+    <script>
+        const Q = 1009;
+
+        function mod(n, m) {
+            return ((n % m) + m) % m;
+        }
+
+        function spawnRipple(e) {
+            const btn = e.currentTarget;
+            const rect = btn.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            const size = Math.max(rect.width, rect.height);
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+            ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+            btn.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        }
+
+        function getMatrixInputs(containerId, rows, cols) {
+            const inputs = document.getElementById(containerId).querySelectorAll('input');
+            let matrix = [];
+            let idx = 0;
+            for (let r = 0; r < rows; r++) {
+                let row = [];
+                for (let c = 0; c < cols; c++) {
+                    row.push(parseFloat(inputs[idx].value) || 0);
+                    idx++;
+                }
+                matrix.push(row);
+            }
+            return matrix;
+        }
+
+        function getVectorInputs(containerId) {
+            const inputs = document.getElementById(containerId).querySelectorAll('input');
+            let vec = [];
+            inputs.forEach(input => vec.push(parseFloat(input.value) || 0));
+            return vec;
+        }
+
+        function renderMatrix4x1(label, vec) {
+            return `
+                <div class="matrix-container">
+                    <span class="matrix-label">${label} =</span>
+                    <div class="bracket-matrix">
+                        <div>${vec[0]}</div>
+                        <div>${vec[1]}</div>
+                        <div>${vec[2]}</div>
+                        <div>${vec[3]}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let computedB = null;
+        let transmittedV = null;
+
+        function generatePublicKey(e) {
+            if (e) spawnRipple(e);
+            const A = getMatrixInputs('matrixA', 4, 4);
+            const S = getVectorInputs('vectorS');
+            const en = getVectorInputs('vectore');
+
+            computedB = [];
+            for (let i = 0; i < 4; i++) {
+                let ax_s = 0;
+                for (let j = 0; j < 4; j++) {
+                    ax_s += A[i][j] * S[j];
+                }
+                computedB.push(mod(ax_s + en[i], Q));
+            }
+
+            const box = document.getElementById('outPublicKey');
+            box.className = 'output-box';
+            box.innerHTML = renderMatrix4x1('B', computedB);
+        }
+
+        function encryptMessage(e) {
+            if (e) spawnRipple(e);
+            if (!computedB) generatePublicKey();
+
+            const P = getVectorInputs('vectorP');
+            const E = getVectorInputs('vectorE');
+            const P_scaled = P.map(val => val * 4);
+
+            transmittedV = [];
+            for (let i = 0; i < 4; i++) {
+                transmittedV.push(mod(computedB[i] + E[i] + P_scaled[i], Q));
+            }
+
+            const box = document.getElementById('outEncrypted');
+            box.className = 'output-box';
+            box.innerHTML = renderMatrix4x1('V', transmittedV);
+        }
+
+        function decryptMessage(e) {
+            if (e) spawnRipple(e);
+            if (!transmittedV) encryptMessage();
+
+            const actualS = getVectorInputs('vectorS');
+            const enteredS = getVectorInputs('vectorAuthS');
+            const outputElem = document.getElementById('outDecrypted');
+
+            const isKeyCorrect = actualS.every((val, idx) => val === enteredS[idx]);
+
+            if (!isKeyCorrect) {
+                outputElem.className = 'output-box error-box';
+                outputElem.innerText = "ACCESS DENIED\nIncorrect Secret Key";
+                return;
+            }
+
+            const A = getMatrixInputs('matrixA', 4, 4);
+            let P_recovered = [];
+
+            for (let i = 0; i < 4; i++) {
+                let ax_s = 0;
+                for (let j = 0; j < 4; j++) {
+                    ax_s += A[i][j] * enteredS[j];
+                }
+                let p_star = mod(transmittedV[i] - ax_s, Q);
+                P_recovered.push(Math.round(p_star / 4));
+            }
+
+            outputElem.className = 'output-box success-box';
+            outputElem.innerHTML = renderMatrix4x1('P', P_recovered);
+        }
+
+        window.onload = function() {
+            generatePublicKey();
+            encryptMessage();
+            decryptMessage();
+        };
+    </script>
+</body>
+</html>
